@@ -20,6 +20,9 @@ permissions:
   contents: read
 
 jobs:
+  # --------------------------------------------------
+  # 1. Backend tests
+  # --------------------------------------------------
   backend-tests:
     name: Backend tests
     uses: ./.github/workflows/reusable-node-validation.yml
@@ -28,6 +31,9 @@ jobs:
       project-type: backend
       node-version: "22"
 
+  # --------------------------------------------------
+  # 2. Frontend build and validation
+  # --------------------------------------------------
   frontend-build:
     name: Frontend build
     uses: ./.github/workflows/reusable-node-validation.yml
@@ -36,6 +42,9 @@ jobs:
       project-type: frontend
       node-version: "22"
 
+  # --------------------------------------------------
+  # 3. Backend Node.js compatibility
+  # --------------------------------------------------
   backend-compatibility:
     name: Backend compatibility
     runs-on: ubuntu-latest
@@ -53,12 +62,26 @@ jobs:
       - name: Check out repository
         uses: actions/checkout@v4
 
+      - name: Log runner information
+        shell: bash
+        run: |
+          echo "======================================"
+          echo "Backend compatibility test"
+          echo "Node.js version: ${{ matrix.node-version }}"
+          echo "Runner: $RUNNER_OS"
+          echo "======================================"
+
       - name: Set up Node.js
         uses: actions/setup-node@v4
         with:
           node-version: ${{ matrix.node-version }}
           cache: npm
           cache-dependency-path: backend/package-lock.json
+
+      - name: Show Node.js and npm versions
+        run: |
+          node --version
+          npm --version
 
       - name: Install backend dependencies
         run: npm ci
@@ -69,6 +92,9 @@ jobs:
       - name: Run backend tests
         run: npm test
 
+  # --------------------------------------------------
+  # 4. Staging configuration demonstration
+  # --------------------------------------------------
   configuration-demo:
     name: Staging configuration demo
     if: github.event_name == 'workflow_dispatch'
@@ -83,18 +109,23 @@ jobs:
       - name: Verify staging environment variable
         shell: bash
         run: |
+          echo "Checking staging configuration..."
+
           if [ "$APP_ENV" != "staging" ]; then
-            echo "APP_ENV is missing or incorrect"
+            echo "::error::APP_ENV is missing or incorrect."
             exit 1
           fi
 
-          echo "Staging environment configuration is correct"
+          echo "Staging configuration verified successfully."
 
+  # --------------------------------------------------
+  # 5. Build and publish Docker images to Amazon ECR
+  # --------------------------------------------------
   docker-image-build:
     name: Build and publish Docker images to ECR
     runs-on: ubuntu-latest
 
-    # Publish only for pushes to main or version tags.
+    # Publish only on pushes to main or version tags.
     if: >-
       github.event_name == 'push' &&
       (
@@ -115,36 +146,110 @@ jobs:
       - name: Check out repository
         uses: actions/checkout@v4
 
-      # Safe diagnostic values; no AWS credentials or OIDC token are printed.
-      - name: Debug GitHub OIDC context
+      # ----------------------------------------------
+      # Diagnostic logs
+      # ----------------------------------------------
+      - name: Log GitHub Actions context
+        shell: bash
         env:
           EVENT_NAME: ${{ github.event_name }}
           REF: ${{ github.ref }}
+          REF_TYPE: ${{ github.ref_type }}
           REPOSITORY: ${{ github.repository }}
-        shell: bash
+          COMMIT_SHA: ${{ github.sha }}
+          AWS_ROLE_ARN: ${{ vars.AWS_ROLE_ARN }}
+          AWS_REGION: ${{ vars.AWS_REGION }}
         run: |
+          echo "======================================"
+          echo "GitHub Actions deployment diagnostics"
+          echo "======================================"
           echo "Event: $EVENT_NAME"
           echo "Ref: $REF"
+          echo "Ref type: $REF_TYPE"
           echo "Repository: $REPOSITORY"
+          echo "Commit: $COMMIT_SHA"
+          echo "AWS role ARN: $AWS_ROLE_ARN"
+          echo "AWS region: $AWS_REGION"
+          echo "======================================"
 
+          if [ "$REPOSITORY" != "adityaas0201/Multi-Container-App-for-Task-Manager-Using-Docker-Compose" ]; then
+            echo "::error::Unexpected GitHub repository."
+            exit 1
+          fi
+
+          if [ "$AWS_ROLE_ARN" != "arn:aws:iam::916338043229:role/GitHubActionsTaskManagerECRRole" ]; then
+            echo "::error::AWS_ROLE_ARN is missing or incorrect."
+            exit 1
+          fi
+
+          if [ "$AWS_REGION" != "ap-south-1" ]; then
+            echo "::error::AWS_REGION is missing or incorrect."
+            exit 1
+          fi
+
+      # ----------------------------------------------
+      # AWS OIDC authentication
+      # ----------------------------------------------
       - name: Configure AWS credentials using OIDC
+        id: aws-credentials
         uses: aws-actions/configure-aws-credentials@v4
         with:
           role-to-assume: ${{ vars.AWS_ROLE_ARN }}
           aws-region: ${{ vars.AWS_REGION }}
           audience: sts.amazonaws.com
+          role-session-name: GitHubActionsTaskManager-${{ github.run_id }}
 
       - name: Verify AWS identity
         shell: bash
-        run: aws sts get-caller-identity
+        run: |
+          echo "======================================"
+          echo "Verifying assumed AWS identity..."
+          echo "======================================"
 
+          aws sts get-caller-identity
+
+          ACCOUNT_ID="$(aws sts get-caller-identity --query Account --output text)"
+
+          if [ "$ACCOUNT_ID" != "916338043229" ]; then
+            echo "::error::Authenticated to an unexpected AWS account."
+            exit 1
+          fi
+
+          echo "AWS identity verification successful."
+
+      # ----------------------------------------------
+      # ECR authentication
+      # ----------------------------------------------
       - name: Log in to Amazon ECR
         id: login-ecr
         uses: aws-actions/amazon-ecr-login@v2
 
+      - name: Verify ECR registry
+        shell: bash
+        env:
+          REGISTRY: ${{ steps.login-ecr.outputs.registry }}
+        run: |
+          echo "ECR registry: $REGISTRY"
+
+          if [ -z "$REGISTRY" ]; then
+            echo "::error::ECR registry output is empty."
+            exit 1
+          fi
+
+          echo "ECR login step completed."
+
+      # ----------------------------------------------
+      # Docker Buildx
+      # ----------------------------------------------
       - name: Set up Docker Buildx
         uses: docker/setup-buildx-action@v3
 
+      - name: Inspect Docker Buildx
+        run: docker buildx inspect --bootstrap
+
+      # ----------------------------------------------
+      # Backend image
+      # ----------------------------------------------
       - name: Generate backend image metadata
         id: backend-meta
         uses: docker/metadata-action@v5
@@ -154,7 +259,16 @@ jobs:
             type=sha,format=short
             type=ref,event=tag
 
+      - name: Log backend image details
+        shell: bash
+        env:
+          IMAGE_TAGS: ${{ steps.backend-meta.outputs.tags }}
+        run: |
+          echo "Backend image tags:"
+          printf '%s\n' "$IMAGE_TAGS"
+
       - name: Build and push backend image
+        id: backend-image
         uses: docker/build-push-action@v6
         with:
           context: ./backend
@@ -162,7 +276,18 @@ jobs:
           push: true
           tags: ${{ steps.backend-meta.outputs.tags }}
           labels: ${{ steps.backend-meta.outputs.labels }}
+          provenance: false
 
+      - name: Report backend image digest
+        shell: bash
+        env:
+          IMAGE_DIGEST: ${{ steps.backend-image.outputs.digest }}
+        run: |
+          echo "Backend image digest: $IMAGE_DIGEST"
+
+      # ----------------------------------------------
+      # Frontend image
+      # ----------------------------------------------
       - name: Generate frontend image metadata
         id: frontend-meta
         uses: docker/metadata-action@v5
@@ -172,7 +297,16 @@ jobs:
             type=sha,format=short
             type=ref,event=tag
 
+      - name: Log frontend image details
+        shell: bash
+        env:
+          IMAGE_TAGS: ${{ steps.frontend-meta.outputs.tags }}
+        run: |
+          echo "Frontend image tags:"
+          printf '%s\n' "$IMAGE_TAGS"
+
       - name: Build and push frontend image
+        id: frontend-image
         uses: docker/build-push-action@v6
         with:
           context: ./frontend
@@ -180,7 +314,46 @@ jobs:
           push: true
           tags: ${{ steps.frontend-meta.outputs.tags }}
           labels: ${{ steps.frontend-meta.outputs.labels }}
+          provenance: false
 
+      - name: Report frontend image digest
+        shell: bash
+        env:
+          IMAGE_DIGEST: ${{ steps.frontend-image.outputs.digest }}
+        run: |
+          echo "Frontend image digest: $IMAGE_DIGEST"
+
+      # ----------------------------------------------
+      # Deployment summary
+      # ----------------------------------------------
+      - name: Docker publishing summary
+        if: success()
+        shell: bash
+        run: |
+          echo "======================================"
+          echo "Docker publishing completed successfully"
+          echo "======================================"
+          echo "Backend repository:"
+          echo "916338043229.dkr.ecr.ap-south-1.amazonaws.com/task-manager-api"
+          echo ""
+          echo "Frontend repository:"
+          echo "916338043229.dkr.ecr.ap-south-1.amazonaws.com/task-manager-frontend"
+
+      # ----------------------------------------------
+      # Failure diagnostics
+      # ----------------------------------------------
+      - name: Report Docker publishing failure
+        if: failure()
+        shell: bash
+        run: |
+          echo "::error::The Docker publishing job failed."
+          echo "Inspect the first failed step above."
+          echo "If AWS OIDC authentication failed, verify the IAM role trust policy,"
+          echo "GitHub OIDC subject, provider ARN, audience, and id-token permission."
+
+  # --------------------------------------------------
+  # 6. Validation summary
+  # --------------------------------------------------
   validation-summary:
     name: Validation summary
     runs-on: ubuntu-latest
@@ -209,19 +382,28 @@ jobs:
           path: downloaded-frontend/
 
       - name: Verify downloaded files
-        run: ls -la downloaded-frontend/
+        shell: bash
+        run: |
+          echo "Downloaded frontend artifact contents:"
+          ls -la downloaded-frontend/
 
       - name: Report validation result
         shell: bash
         env:
           DOCKER_RESULT: ${{ needs.docker-image-build.result }}
         run: |
-          echo "Backend validation passed."
-          echo "Frontend validation and build passed."
-          echo "Backend compatibility matrix passed."
+          echo "======================================"
+          echo "Task Manager CI validation summary"
+          echo "======================================"
+          echo "Backend tests: ${{ needs.backend-tests.result }}"
+          echo "Frontend build: ${{ needs.frontend-build.result }}"
+          echo "Backend compatibility: ${{ needs.backend-compatibility.result }}"
+          echo "Docker publishing: $DOCKER_RESULT"
 
           if [ "$DOCKER_RESULT" = "success" ]; then
-            echo "Docker images were published to ECR."
+            echo "Both Docker images were published to ECR."
           else
             echo "Docker publishing was skipped for this event."
           fi
+
+          echo "All required validation jobs passed."
