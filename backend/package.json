@@ -11,7 +11,8 @@
         "db:migrate": "node src/db/migrate.js",
         "test": "node --test",
         "test:api": "node --test tests/integration/api.test.js",
-        "test:db": "node --test tests/integration/database.integration.js"
+        "test:db": "node --test tests/integration/database.integration.js",
+        "lint": "eslint ."
     },
     "engines": {
         "node": ">=22"
@@ -23,6 +24,9 @@
         "redis": "^6.3.0"
     },
     "devDependencies": {
+        "@eslint/js": "^10.0.1",
+        "eslint": "^10.13.0",
+        "globals": "^17.13.0",
         "supertest": "^7.3.1"
     }
 }

@@ -23,10 +23,8 @@ export async function getCachedValue(key) {
 
     try {
       return JSON.parse(cachedValue);
-    } catch (error) {
-      console.warn(
-        `Invalid JSON in Redis key "${key}"; treating it as a cache miss.`
-      );
+    } catch {
+      console.warn(`Invalid JSON in Redis key "${key}"; treating it as a cache miss.`);
 
       try {
         await redisClient.del(key);

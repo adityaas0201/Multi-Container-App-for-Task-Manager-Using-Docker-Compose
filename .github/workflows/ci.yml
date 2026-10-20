@@ -49,6 +49,9 @@ jobs:
       - name: Install backend dependencies
         run: npm ci
 
+      - name: Lint backend
+        run: npm run lint
+
       - name: Run backend tests
         run: npm test
 
@@ -74,6 +77,9 @@ jobs:
       - name: Install frontend dependencies
         run: npm ci
 
+      - name: Lint frontend
+        run: npm run lint
+
       - name: Build frontend
         run: npm run build
 
@@ -85,5 +91,5 @@ jobs:
       - frontend-build
 
     steps:
-      - name: Confirm required checks passed
-        run: echo "Backend tests and frontend build passed."
+      - name: Confirm quality gates passed
+        run: echo "Backend lint and tests passed. Frontend lint and build passed."
