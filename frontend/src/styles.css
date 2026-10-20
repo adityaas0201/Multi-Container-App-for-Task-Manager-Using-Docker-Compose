@@ -1,0 +1,310 @@
+
+:root {
+    font-family: Inter, ui-sans-serif, system-ui, -apple-system, BlinkMacSystemFont,
+      "Segoe UI", sans-serif;
+    color: #182230;
+    background: #f3f5f9;
+    font-synthesis: none;
+    text-rendering: optimizeLegibility;
+    -webkit-font-smoothing: antialiased;
+    -moz-osx-font-smoothing: grayscale;
+    font-weight: 400;
+  }
+  
+  * {
+    box-sizing: border-box;
+  }
+  
+  body {
+    margin: 0;
+    min-width: 320px;
+    min-height: 100vh;
+  }
+  
+  button,
+  input,
+  textarea {
+    font: inherit;
+  }
+  
+  button {
+    cursor: pointer;
+  }
+  
+  button:disabled {
+    cursor: not-allowed;
+    opacity: 0.55;
+  }
+  
+  .page {
+    width: min(100% - 32px, 820px);
+    margin: 0 auto;
+    padding: 52px 0 28px;
+  }
+  
+  .page-header,
+  .section-heading,
+  .task-footer {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    gap: 16px;
+  }
+  
+  .page-header {
+    margin-bottom: 28px;
+  }
+  
+  .eyebrow {
+    margin: 0 0 8px;
+    color: #5268d9;
+    font-size: 0.76rem;
+    font-weight: 800;
+    letter-spacing: 0.12em;
+  }
+  
+  h1,
+  h2,
+  h3,
+  p {
+    overflow-wrap: anywhere;
+  }
+  
+  h1 {
+    margin: 0;
+    font-size: clamp(2rem, 6vw, 3rem);
+    letter-spacing: -0.045em;
+  }
+  
+  h2 {
+    margin: 0 0 18px;
+    font-size: 1.2rem;
+  }
+  
+  .subtitle {
+    margin: 10px 0 0;
+    color: #647084;
+  }
+  
+  .task-count {
+    display: grid;
+    gap: 4px;
+    min-width: 100px;
+    padding: 14px;
+    border: 1px solid #e1e6ef;
+    border-radius: 14px;
+    background: #fff;
+    text-align: center;
+  }
+  
+  .task-count strong {
+    font-size: 1.25rem;
+  }
+  
+  .task-count span {
+    color: #647084;
+    font-size: 0.78rem;
+  }
+  
+  .panel,
+  .task-section {
+    padding: 24px;
+    border: 1px solid #e1e6ef;
+    border-radius: 18px;
+    background: #fff;
+    box-shadow: 0 8px 28px rgb(30 45 80 / 4%);
+  }
+  
+  .panel {
+    margin-bottom: 28px;
+  }
+  
+  .task-form {
+    display: grid;
+    gap: 10px;
+  }
+  
+  .task-form label {
+    margin-top: 4px;
+    font-size: 0.9rem;
+    font-weight: 650;
+  }
+  
+  .task-form input,
+  .task-form textarea {
+    width: 100%;
+    padding: 12px 14px;
+    border: 1px solid #d9dfeb;
+    border-radius: 10px;
+    background: #fff;
+    color: #182230;
+  }
+  
+  .task-form input:focus,
+  .task-form textarea:focus {
+    border-color: #5268d9;
+    outline: 3px solid rgb(82 104 217 / 14%);
+  }
+  
+  .task-form textarea {
+    resize: vertical;
+  }
+  
+  .primary-button,
+  .secondary-button,
+  .delete-button {
+    border-radius: 9px;
+    padding: 10px 14px;
+    font-weight: 650;
+  }
+  
+  .primary-button {
+    margin-top: 6px;
+    border: 1px solid #4055c5;
+    background: #5268d9;
+    color: #fff;
+  }
+  
+  .primary-button:hover:not(:disabled) {
+    background: #4055c5;
+  }
+  
+  .secondary-button {
+    border: 1px solid #d9dfeb;
+    background: #fff;
+    color: #28344b;
+  }
+  
+  .delete-button {
+    border: 1px solid #f1c9c9;
+    background: #fff7f7;
+    color: #ad3030;
+  }
+  
+  .task-list {
+    display: grid;
+    gap: 12px;
+    margin: 0;
+    padding: 0;
+    list-style: none;
+  }
+  
+  .task-item {
+    padding: 16px;
+    border: 1px solid #e5e9f1;
+    border-radius: 12px;
+  }
+  
+  .task-main {
+    display: flex;
+    align-items: flex-start;
+    gap: 10px;
+  }
+  
+  .task-main input {
+    width: 18px;
+    height: 18px;
+    margin-top: 3px;
+    accent-color: #5268d9;
+  }
+  
+  .task-title {
+    font-weight: 700;
+    line-height: 1.5;
+  }
+  
+  .task-title.completed {
+    color: #7a8494;
+    text-decoration: line-through;
+  }
+  
+  .task-description {
+    margin: 10px 0 14px 28px;
+    color: #647084;
+    line-height: 1.55;
+  }
+  
+  .task-footer {
+    margin-top: 14px;
+    padding-left: 28px;
+  }
+  
+  .status-pill {
+    display: inline-block;
+    padding: 5px 9px;
+    border-radius: 999px;
+    font-size: 0.75rem;
+    font-weight: 700;
+  }
+  
+  .status-pill.pending {
+    background: #fff4d8;
+    color: #805500;
+  }
+  
+  .status-pill.done {
+    background: #e5f7ec;
+    color: #176b3a;
+  }
+  
+  .error-message {
+    margin-bottom: 16px;
+    padding: 14px;
+    border: 1px solid #f1c9c9;
+    border-radius: 10px;
+    background: #fff7f7;
+    color: #8f2525;
+  }
+  
+  .error-message p {
+    margin-top: 0;
+  }
+  
+  .status-message,
+  .empty-state {
+    color: #647084;
+  }
+  
+  .empty-state {
+    padding: 28px 12px;
+    border: 1px dashed #d9dfeb;
+    border-radius: 12px;
+    text-align: center;
+  }
+  
+  .empty-state h3 {
+    margin: 0 0 8px;
+    color: #28344b;
+  }
+  
+  .empty-state p {
+    margin: 0;
+  }
+  
+  .page-footer {
+    padding: 24px 0 0;
+    color: #7a8494;
+    font-size: 0.8rem;
+    text-align: center;
+  }
+  
+  @media (max-width: 520px) {
+    .page {
+      padding-top: 28px;
+    }
+  
+    .page-header {
+      align-items: flex-start;
+    }
+  
+    .task-count {
+      min-width: 82px;
+      padding: 10px;
+    }
+  
+    .panel,
+    .task-section {
+      padding: 17px;
+    }
+  }
+  
