@@ -36,7 +36,6 @@ jobs:
       project-directory: frontend
       project-type: frontend
       node-version: "22"
-  
 
   backend-compatibility:
     name: Backend compatibility
@@ -65,18 +64,12 @@ jobs:
       - name: Install backend dependencies
         run: npm ci
 
+      - name: Lint backend
+        run: npm run lint
+
       - name: Run backend tests
         run: npm test
-      
-      - name: Download frontend build artifact
-        uses: actions/download-artifact@v4
-        with:
-          name: frontend-build-${{ github.run_id }}
-          path: downloaded-frontend/
 
-      - name: Verify downloaded files
-        run: ls -la downloaded-frontend/
-  
   configuration-demo:
     name: Staging configuration demo
     if: github.event_name == 'workflow_dispatch'
@@ -98,16 +91,28 @@ jobs:
 
           echo "Staging environment configuration is correct"
 
-
-
   validation-summary:
     name: Validation summary
     runs-on: ubuntu-latest
+
     needs:
       - backend-tests
       - frontend-build
       - backend-compatibility
 
     steps:
+      - name: Download frontend build artifact
+        uses: actions/download-artifact@v4
+        with:
+          name: frontend-build-${{ github.run_id }}
+          path: downloaded-frontend/
+
+      - name: Verify downloaded files
+        run: ls -la downloaded-frontend/
+
       - name: Confirm quality gates passed
-        run: echo "Backend validation, frontend validation, and Node.js compatibility checks passed."
+        run: |
+          echo "Backend validation passed."
+          echo "Frontend validation and build passed."
+          echo "Backend compatibility matrix passed."
+          echo "Frontend build artifact downloaded successfully."
