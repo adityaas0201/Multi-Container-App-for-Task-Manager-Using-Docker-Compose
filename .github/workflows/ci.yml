@@ -45,6 +45,12 @@ jobs:
 
       - name: Verify Node.js version
         run: node --version
+      
+      
+      - name: Identify pull request validation
+        if: github.event_name == 'pull_request'
+        run: echo "Running CI for a pull request targeting main"
+
 
       - name: Install backend dependencies
         run: npm ci
@@ -82,14 +88,49 @@ jobs:
 
       - name: Build frontend
         run: npm run build
+  
+  
+  backend-compatibility:
+    name: Backend compatibility (Node ${{ matrix.node-version }})
+    runs-on: ubuntu-latest
 
+    strategy:
+      fail-fast: false
+      matrix:
+        node-version: [22, 24]
+
+    defaults:
+      run:
+        working-directory: backend
+
+    steps:
+      - name: Check out repository
+        uses: actions/checkout@v4
+
+      - name: Set up Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: ${{ matrix.node-version }}
+          cache: npm
+          cache-dependency-path: backend/package-lock.json
+
+      - name: Install dependencies
+        run: npm ci
+
+      - name: Run backend tests
+        run: npm test
+
+
+  
   validation-summary:
     name: Validation summary
     runs-on: ubuntu-latest
     needs:
       - backend-tests
       - frontend-build
+      - backend-compatibility
 
     steps:
       - name: Confirm quality gates passed
-        run: echo "Backend lint and tests passed. Frontend lint and build passed."
+        run: echo "Backend lint and tests passed. Frontend lint and build passed. Backend compatibility matrix passed."
+
