@@ -36,6 +36,7 @@ jobs:
       project-directory: frontend
       project-type: frontend
       node-version: "22"
+  
 
   backend-compatibility:
     name: Backend compatibility
@@ -66,6 +67,38 @@ jobs:
 
       - name: Run backend tests
         run: npm test
+      
+      - name: Download frontend build artifact
+        uses: actions/download-artifact@v4
+        with:
+          name: frontend-build-${{ github.run_id }}
+          path: downloaded-frontend/
+
+      - name: Verify downloaded files
+        run: ls -la downloaded-frontend/
+  
+  configuration-demo:
+    name: Staging configuration demo
+    if: github.event_name == 'workflow_dispatch'
+    runs-on: ubuntu-latest
+
+    environment: staging
+
+    env:
+      APP_ENV: ${{ vars.APP_ENV }}
+
+    steps:
+      - name: Verify staging environment variable
+        shell: bash
+        run: |
+          if [ "$APP_ENV" != "staging" ]; then
+            echo "APP_ENV is missing or incorrect"
+            exit 1
+          fi
+
+          echo "Staging environment configuration is correct"
+
+
 
   validation-summary:
     name: Validation summary
