@@ -1,0 +1,62 @@
+
+name: Reusable Node validation
+
+on:
+  workflow_call:
+    inputs:
+      project-directory:
+        description: Project directory
+        required: true
+        type: string
+
+      project-type:
+        description: Either backend or frontend
+        required: true
+        type: string
+
+      node-version:
+        description: Node.js version
+        required: false
+        type: string
+        default: "22"
+
+permissions:
+  contents: read
+
+jobs:
+  validate:
+    name: Validate ${{ inputs.project-type }}
+    runs-on: ubuntu-latest
+
+    steps:
+      - name: Check out repository
+        uses: actions/checkout@v4
+
+      - name: Set up project
+        uses: ./.github/actions/node-project-setup
+        with:
+          project-directory: ${{ inputs.project-directory }}
+          node-version: ${{ inputs.node-version }}
+
+      - name: Lint project
+        working-directory: ${{ inputs.project-directory }}
+        run: npm run lint
+
+      - name: Run backend tests
+        if: inputs.project-type == 'backend'
+        working-directory: ${{ inputs.project-directory }}
+        run: npm test
+
+      - name: Build frontend
+        if: inputs.project-type == 'frontend'
+        working-directory: ${{ inputs.project-directory }}
+        run: npm run build
+
+      - name: Upload frontend build artifact
+        if: inputs.project-type == 'frontend'
+        uses: actions/upload-artifact@v4
+        with:
+          name: frontend-build-${{ github.run_id }}
+          path: ${{ inputs.project-directory }}/dist/
+          if-no-files-found: error
+          retention-days: 7

@@ -23,75 +23,22 @@ permissions:
 jobs:
   backend-tests:
     name: Backend tests
-    runs-on: ubuntu-latest
-
-    env:
-      NODE_ENV: test
-
-    defaults:
-      run:
-        working-directory: backend
-
-    steps:
-      - name: Check out repository
-        uses: actions/checkout@v4
-
-      - name: Set up Node.js
-        uses: actions/setup-node@v4
-        with:
-          node-version: "22"
-          cache: npm
-          cache-dependency-path: backend/package-lock.json
-
-      - name: Verify Node.js version
-        run: node --version
-      
-      
-      - name: Identify pull request validation
-        if: github.event_name == 'pull_request'
-        run: echo "Running CI for a pull request targeting main"
-
-
-      - name: Install backend dependencies
-        run: npm ci
-
-      - name: Lint backend
-        run: npm run lint
-
-      - name: Run backend tests
-        run: npm test
+    uses: ./.github/workflows/reusable-node-validation.yml
+    with:
+      project-directory: backend
+      project-type: backend
+      node-version: "22"
 
   frontend-build:
     name: Frontend build
-    runs-on: ubuntu-latest
+    uses: ./.github/workflows/reusable-node-validation.yml
+    with:
+      project-directory: frontend
+      project-type: frontend
+      node-version: "22"
 
-    defaults:
-      run:
-        working-directory: frontend
-
-    steps:
-      - name: Check out repository
-        uses: actions/checkout@v4
-
-      - name: Set up Node.js
-        uses: actions/setup-node@v4
-        with:
-          node-version: "22"
-          cache: npm
-          cache-dependency-path: frontend/package-lock.json
-
-      - name: Install frontend dependencies
-        run: npm ci
-
-      - name: Lint frontend
-        run: npm run lint
-
-      - name: Build frontend
-        run: npm run build
-  
-  
   backend-compatibility:
-    name: Backend compatibility (Node ${{ matrix.node-version }})
+    name: Backend compatibility
     runs-on: ubuntu-latest
 
     strategy:
@@ -114,14 +61,12 @@ jobs:
           cache: npm
           cache-dependency-path: backend/package-lock.json
 
-      - name: Install dependencies
+      - name: Install backend dependencies
         run: npm ci
 
       - name: Run backend tests
         run: npm test
 
-
-  
   validation-summary:
     name: Validation summary
     runs-on: ubuntu-latest
@@ -132,5 +77,4 @@ jobs:
 
     steps:
       - name: Confirm quality gates passed
-        run: echo "Backend lint and tests passed. Frontend lint and build passed. Backend compatibility matrix passed."
-
+        run: echo "Backend validation, frontend validation, and Node.js compatibility checks passed."
