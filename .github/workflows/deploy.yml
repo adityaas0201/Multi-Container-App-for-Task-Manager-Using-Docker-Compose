@@ -1,0 +1,53 @@
+
+name: Deployment Workflow
+
+on:
+  workflow_dispatch:
+    inputs:
+      environment:
+        description: "Environment to prepare"
+        required: true
+        type: choice
+        options:
+          - development
+          - staging
+          - production
+
+      image_tag:
+        description: "Existing Docker image tag, preferably a commit SHA"
+        required: true
+        type: string
+
+permissions:
+  contents: read
+
+jobs:
+  prepare-release:
+    name: Validate release request
+    runs-on: ubuntu-latest
+
+    environment: ${{ inputs.environment }}
+
+    steps:
+      - name: Display deployment selection
+        env:
+          TARGET_ENVIRONMENT: ${{ inputs.environment }}
+          IMAGE_TAG: ${{ inputs.image_tag }}
+        run: |
+          echo "Target environment: $TARGET_ENVIRONMENT"
+          echo "Requested image tag: $IMAGE_TAG"
+
+      - name: Validate image tag format
+        env:
+          IMAGE_TAG: ${{ inputs.image_tag }}
+        run: |
+          if [[ ! "$IMAGE_TAG" =~ ^[A-Za-z0-9_][A-Za-z0-9_.-]{0,127}$ ]]; then
+            echo "Invalid image tag format."
+            exit 1
+          fi
+
+      - name: Explain next deployment step
+        run: |
+          echo "Release inputs passed basic validation."
+          echo "No deployment has occurred."
+          echo "The next step is to connect a deployment target."
