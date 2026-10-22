@@ -1,0 +1,10 @@
+{
+    "name": "task-manager-db-bootstrap",
+    "version": "1.0.0",
+    "private": true,
+    "type": "module",
+    "dependencies": {
+      "@aws-sdk/client-secrets-manager": "^3.900.0",
+      "pg": "^8.16.3"
+    }
+  }

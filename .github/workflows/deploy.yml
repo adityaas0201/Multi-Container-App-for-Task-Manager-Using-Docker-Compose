@@ -1,53 +1,252 @@
 
-name: Deployment Workflow
+name: ECS Image Promotion
 
 on:
   workflow_dispatch:
     inputs:
-      environment:
-        description: "Environment to prepare"
+      backend_image_tag:
+        description: "Existing backend ECR image tag"
         required: true
-        type: choice
-        options:
-          - development
-          - staging
-          - production
-
-      image_tag:
-        description: "Existing Docker image tag, preferably a commit SHA"
+        type: string
+      frontend_image_tag:
+        description: "Existing frontend ECR image tag"
         required: true
         type: string
 
 permissions:
   contents: read
+  id-token: write
+
+concurrency:
+  group: task-manager-production-deployment
+  cancel-in-progress: false
 
 jobs:
-  prepare-release:
-    name: Validate release request
+  deploy:
+    name: Promote images to ECS
     runs-on: ubuntu-latest
 
-    environment: ${{ inputs.environment }}
+    # Configure required reviewers on this GitHub Environment
+    # to gate production deployments.
+    environment: production
+
+    env:
+      AWS_REGION: ${{ vars.AWS_REGION }}
+      AWS_ROLE_ARN: ${{ vars.AWS_ROLE_ARN }}
+      ECS_CLUSTER: ${{ vars.ECS_CLUSTER }}
+      ECS_API_SERVICE: ${{ vars.ECS_API_SERVICE }}
+      ECS_FRONTEND_SERVICE: ${{ vars.ECS_FRONTEND_SERVICE }}
+      ALB_BASE_URL: ${{ vars.ALB_BASE_URL }}
+      BACKEND_IMAGE_TAG: ${{ inputs.backend_image_tag }}
+      FRONTEND_IMAGE_TAG: ${{ inputs.frontend_image_tag }}
+      AWS_ACCOUNT_ID: "749771281164"
 
     steps:
-      - name: Display deployment selection
-        env:
-          TARGET_ENVIRONMENT: ${{ inputs.environment }}
-          IMAGE_TAG: ${{ inputs.image_tag }}
+      - name: Validate deployment configuration
+        shell: bash
         run: |
-          echo "Target environment: $TARGET_ENVIRONMENT"
-          echo "Requested image tag: $IMAGE_TAG"
+          set -euo pipefail
 
-      - name: Validate image tag format
-        env:
-          IMAGE_TAG: ${{ inputs.image_tag }}
-        run: |
-          if [[ ! "$IMAGE_TAG" =~ ^[A-Za-z0-9_][A-Za-z0-9_.-]{0,127}$ ]]; then
-            echo "Invalid image tag format."
+          for name in AWS_REGION AWS_ROLE_ARN ECS_CLUSTER \
+            ECS_API_SERVICE ECS_FRONTEND_SERVICE ALB_BASE_URL; do
+            if [[ -z "${!name:-}" ]]; then
+              echo "::error::GitHub variable $name is missing."
+              exit 1
+            fi
+          done
+
+          for name in BACKEND_IMAGE_TAG FRONTEND_IMAGE_TAG; do
+            value="${!name}"
+            if [[ ! "$value" =~ ^[A-Za-z0-9_][A-Za-z0-9_.-]{0,127}$ ]]; then
+              echo "::error::Invalid image tag in $name."
+              exit 1
+            fi
+          done
+
+          if [[ "$ALB_BASE_URL" != https://* &&
+                "$ALB_BASE_URL" != http://* ]]; then
+            echo "::error::ALB_BASE_URL must start with http:// or https://."
             exit 1
           fi
 
-      - name: Explain next deployment step
+          echo "Deployment configuration validated."
+
+      - name: Configure AWS credentials using OIDC
+        uses: aws-actions/configure-aws-credentials@v4
+        with:
+          role-to-assume: ${{ vars.AWS_ROLE_ARN }}
+          aws-region: ${{ vars.AWS_REGION }}
+          audience: sts.amazonaws.com
+          role-skip-session-tagging: true
+
+      - name: Verify AWS identity
+        run: aws sts get-caller-identity
+
+      - name: Verify both ECR images exist
+        shell: bash
         run: |
-          echo "Release inputs passed basic validation."
-          echo "No deployment has occurred."
-          echo "The next step is to connect a deployment target."
+          set -euo pipefail
+
+          for item in \
+            "task-manager-api:$BACKEND_IMAGE_TAG" \
+            "task-manager-frontend:$FRONTEND_IMAGE_TAG"; do
+
+            repository="${item%%:*}"
+            tag="${item#*:}"
+
+            digest=$(aws ecr describe-images \
+              --repository-name "$repository" \
+              --image-ids "imageTag=$tag" \
+              --region "$AWS_REGION" \
+              --query 'imageDetails[0].imageDigest' \
+              --output text)
+
+            if [[ -z "$digest" || "$digest" == "None" ]]; then
+              echo "::error::Image not found: $repository:$tag"
+              exit 1
+            fi
+
+            echo "$repository:$tag -> $digest"
+          done
+
+      - name: Deploy, verify, and roll back on failure
+        shell: bash
+        run: |
+          set -Eeuo pipefail
+
+          API_IMAGE="$AWS_ACCOUNT_ID.dkr.ecr.$AWS_REGION.amazonaws.com/task-manager-api:$BACKEND_IMAGE_TAG"
+          FRONTEND_IMAGE="$AWS_ACCOUNT_ID.dkr.ecr.$AWS_REGION.amazonaws.com/task-manager-frontend:$FRONTEND_IMAGE_TAG"
+
+          OLD_API_TD=$(aws ecs describe-services \
+            --cluster "$ECS_CLUSTER" \
+            --services "$ECS_API_SERVICE" \
+            --query 'services[0].taskDefinition' \
+            --output text)
+
+          OLD_FRONTEND_TD=$(aws ecs describe-services \
+            --cluster "$ECS_CLUSTER" \
+            --services "$ECS_FRONTEND_SERVICE" \
+            --query 'services[0].taskDefinition' \
+            --output text)
+
+          if [[ "$OLD_API_TD" == "None" ||
+                "$OLD_FRONTEND_TD" == "None" ]]; then
+            echo "Could not resolve both current ECS task definitions."
+            exit 1
+          fi
+
+          rollback() {
+            rc=$?
+            trap - ERR
+            echo "::error::Deployment failed. Attempting rollback."
+
+            aws ecs update-service \
+              --cluster "$ECS_CLUSTER" \
+              --service "$ECS_API_SERVICE" \
+              --task-definition "$OLD_API_TD" || true
+
+            aws ecs update-service \
+              --cluster "$ECS_CLUSTER" \
+              --service "$ECS_FRONTEND_SERVICE" \
+              --task-definition "$OLD_FRONTEND_TD" || true
+
+            aws ecs wait services-stable \
+              --cluster "$ECS_CLUSTER" \
+              --services "$ECS_API_SERVICE" "$ECS_FRONTEND_SERVICE" || true
+
+            exit "$rc"
+          }
+
+          trap rollback ERR
+
+          API_JSON=$(mktemp)
+          FRONTEND_JSON=$(mktemp)
+          trap 'rm -f "$API_JSON" "$FRONTEND_JSON"' EXIT
+
+          aws ecs describe-task-definition \
+            --task-definition "$OLD_API_TD" \
+            --query taskDefinition \
+            --output json |
+            jq --arg name api --arg image "$API_IMAGE" '
+              if any(.containerDefinitions[]; .name == $name)
+              then
+                (.containerDefinitions[] | select(.name == $name) | .image) = $image
+              else
+                error("API container name not found")
+              end
+              | del(
+                  .taskDefinitionArn, .revision, .status,
+                  .requiresAttributes, .compatibilities,
+                  .registeredAt, .registeredBy
+                )
+            ' > "$API_JSON"
+
+          aws ecs describe-task-definition \
+            --task-definition "$OLD_FRONTEND_TD" \
+            --query taskDefinition \
+            --output json |
+            jq --arg name frontend --arg image "$FRONTEND_IMAGE" '
+              if any(.containerDefinitions[]; .name == $name)
+              then
+                (.containerDefinitions[] | select(.name == $name) | .image) = $image
+              else
+                error("Frontend container name not found")
+              end
+              | del(
+                  .taskDefinitionArn, .revision, .status,
+                  .requiresAttributes, .compatibilities,
+                  .registeredAt, .registeredBy
+                )
+            ' > "$FRONTEND_JSON"
+
+          NEW_API_TD=$(aws ecs register-task-definition \
+            --cli-input-json "file://$API_JSON" \
+            --query 'taskDefinition.taskDefinitionArn' \
+            --output text)
+
+          NEW_FRONTEND_TD=$(aws ecs register-task-definition \
+            --cli-input-json "file://$FRONTEND_JSON" \
+            --query 'taskDefinition.taskDefinitionArn' \
+            --output text)
+
+          echo "Deploying API task definition: $NEW_API_TD"
+          aws ecs update-service \
+            --cluster "$ECS_CLUSTER" \
+            --service "$ECS_API_SERVICE" \
+            --task-definition "$NEW_API_TD" >/dev/null
+
+          echo "Deploying frontend task definition: $NEW_FRONTEND_TD"
+          aws ecs update-service \
+            --cluster "$ECS_CLUSTER" \
+            --service "$ECS_FRONTEND_SERVICE" \
+            --task-definition "$NEW_FRONTEND_TD" >/dev/null
+
+          aws ecs wait services-stable \
+            --cluster "$ECS_CLUSTER" \
+            --services "$ECS_API_SERVICE" "$ECS_FRONTEND_SERVICE"
+
+          smoke_test() {
+            local path="$1"
+            local attempt
+
+            for attempt in $(seq 1 18); do
+              if curl --fail --silent --show-error \
+                --max-time 10 "${ALB_BASE_URL%/}$path" \
+                --output /dev/null; then
+                echo "Smoke test passed: $path"
+                return 0
+              fi
+
+              echo "Attempt $attempt failed for $path; retrying."
+              sleep 10
+            done
+
+            echo "Smoke test failed: $path"
+            return 1
+          }
+
+          smoke_test /
+          smoke_test /api/tasks
+
+          trap - ERR
+          echo "Deployment and smoke tests completed successfully."

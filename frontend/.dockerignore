@@ -7,3 +7,5 @@ dist
 !.env.example
 *.log
 npm-debug.log*
+*.pem
+*.key

@@ -11,6 +11,7 @@ RUN npm ci --omit=dev && npm cache clean --force
 
 COPY --chown=node:node src ./src
 COPY --chown=node:node migrations ./migrations
+COPY --chown=node:node global-bundle.pem /app/global-bundle.pem
 
 USER node
 

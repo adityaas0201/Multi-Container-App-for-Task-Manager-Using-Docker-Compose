@@ -8,3 +8,5 @@ frontend/dist/
 backend/coverage/
 coverage/
 *.log
+*.pem
+*.key

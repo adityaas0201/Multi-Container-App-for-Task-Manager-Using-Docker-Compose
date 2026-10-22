@@ -18,6 +18,12 @@
         "node": ">=22"
     },
     "dependencies": {
+        "@aws-crypto/sha256-js": "^5.2.0",
+        "@aws-sdk/credential-provider-node": "^3.972.87",
+        "@aws-sdk/credential-providers": "^3.1154.0",
+        "@aws-sdk/protocol-http": "^3.370.0",
+        "@aws-sdk/signature-v4": "^3.370.0",
+        "@aws-sdk/util-format-url": "^3.972.51",
         "express": "^5.1.0",
         "node-pg-migrate": "^9.0.0",
         "pg": "^8.13.1",
