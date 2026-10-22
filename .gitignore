@@ -16,4 +16,11 @@ coverage/
 *.tfplan
 crash.log
 crash.*.log
+.terraform/
+*.tfstate
+*.tfstate.*
+tfplan
+*.tfplan
+*.tfvars
+*.tfvars.json
 tfplan
