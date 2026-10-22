@@ -10,3 +10,10 @@ coverage/
 *.log
 *.pem
 *.key
+.terraform/
+*.tfstate
+*.tfstate.*
+*.tfplan
+crash.log
+crash.*.log
+tfplan
