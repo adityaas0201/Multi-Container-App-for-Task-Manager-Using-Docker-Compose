@@ -11,7 +11,7 @@ RUN npm ci --omit=dev && npm cache clean --force
 
 COPY --chown=node:node src ./src
 COPY --chown=node:node migrations ./migrations
-COPY --chown=node:node global-bundle.pem /app/global-bundle.pem
+ADD --chown=node:node https://truststore.pki.rds.amazonaws.com/global/global-bundle.pem /app/global-bundle.pem
 
 USER node
 
