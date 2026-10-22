@@ -5,7 +5,7 @@ resource "aws_eip" "nat" {
   lifecycle {
     prevent_destroy = true
   }
-    tags = {
+  tags = {
     Name    = "taskmanager-nat-eip"
     Project = "chapter28-task-manager"
   }
@@ -18,7 +18,7 @@ resource "aws_nat_gateway" "task_manager" {
   lifecycle {
     prevent_destroy = true
   }
-    tags = {
+  tags = {
     Name    = "taskmanager-nat-a"
     Project = "chapter28-task-manager"
   }

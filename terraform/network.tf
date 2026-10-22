@@ -7,7 +7,7 @@ resource "aws_vpc" "task_manager" {
   lifecycle {
     prevent_destroy = true
   }
-    tags = {
+  tags = {
     Name    = "taskmanager-vpc"
     Project = "chapter28-task-manager"
   }
@@ -19,7 +19,7 @@ resource "aws_internet_gateway" "task_manager" {
   lifecycle {
     prevent_destroy = true
   }
-    tags = {
+  tags = {
     Name    = "taskmanager-igw"
     Project = "chapter28-task-manager"
   }
@@ -34,9 +34,9 @@ resource "aws_subnet" "public_a" {
   lifecycle {
     prevent_destroy = true
   }
-    tags = {
-    Name    = "taskmanager-public-a"
-    Tier    = "public"
+  tags = {
+    Name = "taskmanager-public-a"
+    Tier = "public"
   }
 }
 
@@ -49,9 +49,9 @@ resource "aws_subnet" "public_b" {
   lifecycle {
     prevent_destroy = true
   }
-    tags = {
-    Name    = "taskmanager-public-b"
-    Tier    = "public"
+  tags = {
+    Name = "taskmanager-public-b"
+    Tier = "public"
   }
 }
 
@@ -64,9 +64,9 @@ resource "aws_subnet" "private_app_a" {
   lifecycle {
     prevent_destroy = true
   }
-    tags = {
-    Name    = "taskmanager-app-a"
-    Tier    = "application"
+  tags = {
+    Name = "taskmanager-app-a"
+    Tier = "application"
   }
 }
 
@@ -79,9 +79,9 @@ resource "aws_subnet" "private_app_b" {
   lifecycle {
     prevent_destroy = true
   }
-    tags = {
-    Name    = "taskmanager-app-b"
-    Tier    = "application"
+  tags = {
+    Name = "taskmanager-app-b"
+    Tier = "application"
   }
 }
 
@@ -94,9 +94,9 @@ resource "aws_subnet" "private_data_a" {
   lifecycle {
     prevent_destroy = true
   }
-    tags = {
-    Name    = "taskmanager-data-a"
-    Tier    = "data"
+  tags = {
+    Name = "taskmanager-data-a"
+    Tier = "data"
   }
 }
 
@@ -109,8 +109,8 @@ resource "aws_subnet" "private_data_b" {
   lifecycle {
     prevent_destroy = true
   }
-    tags = {
-    Name    = "taskmanager-data-b"
-    Tier    = "data"
+  tags = {
+    Name = "taskmanager-data-b"
+    Tier = "data"
   }
 }

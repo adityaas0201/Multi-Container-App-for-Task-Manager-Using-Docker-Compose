@@ -5,7 +5,7 @@ resource "aws_route_table" "private_data" {
   lifecycle {
     prevent_destroy = true
   }
-    tags = {
+  tags = {
     Name    = "taskmanager-data-private-rt"
     Project = "chapter28-task-manager"
   }
@@ -17,7 +17,7 @@ resource "aws_route_table" "public" {
   lifecycle {
     prevent_destroy = true
   }
-    tags = {
+  tags = {
     Name    = "taskmanager-public-rt"
     Project = "chapter28-task-manager"
   }
@@ -29,7 +29,7 @@ resource "aws_route_table" "private_app" {
   lifecycle {
     prevent_destroy = true
   }
-    tags = {
+  tags = {
     Name    = "taskmanager-app-private-rt"
     Project = "chapter28-task-manager"
   }
