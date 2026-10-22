@@ -18,12 +18,3 @@ output "common_tags" {
   value       = local.common_tags
 }
 
-output "api_module_resource_name" {
-  description = "API name produced by the reusable module"
-  value       = module.api_metadata.resource_name
-}
-
-output "frontend_module_resource_name" {
-  description = "Frontend name produced by the reusable module"
-  value       = module.frontend_metadata.resource_name
-}
