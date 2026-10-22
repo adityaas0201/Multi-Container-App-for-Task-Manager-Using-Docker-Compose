@@ -5,7 +5,16 @@ import { env } from "../config/env.js";
 
 const { Pool } = pg;
 
-const ca = await readFile("/app/global-bundle.pem", "utf8");
+// SSL stays ON unless DB_SSL is explicitly set to "false" (used by tests).
+const sslEnabled = process.env.DB_SSL !== "false";
+const caPath = process.env.DB_SSL_CA_PATH ?? "/app/global-bundle.pem";
+
+const ssl = sslEnabled
+  ? {
+      ca: await readFile(caPath, "utf8"),
+      rejectUnauthorized: true
+    }
+  : false;
 
 export const pool = new Pool({
   host: env.dbHost,
@@ -14,10 +23,7 @@ export const pool = new Pool({
   user: env.dbUser,
   password: env.dbPassword,
 
-  ssl: {
-    ca,
-    rejectUnauthorized: true
-  },
+  ssl,
 
   max: 10,
   idleTimeoutMillis: 30_000,

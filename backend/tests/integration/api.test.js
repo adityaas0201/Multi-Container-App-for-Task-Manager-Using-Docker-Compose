@@ -5,6 +5,7 @@ import request from "supertest";
 
 // Configure values before importing the application modules.
 process.env.NODE_ENV ??= "test";
+process.env.DB_SSL ??= "false"; 
 process.env.DB_HOST ??= "127.0.0.1";
 process.env.DB_PORT ??= "5432";
 process.env.DB_NAME ??= "taskmanager";
@@ -12,6 +13,7 @@ process.env.DB_USER ??= "taskapp";
 process.env.DB_PASSWORD ??= "test-only-password";
 process.env.REDIS_HOST ??= "127.0.0.1";
 process.env.REDIS_PORT ??= "6380";
+
 
 const { default: app } = await import("../../src/app.js");
 
